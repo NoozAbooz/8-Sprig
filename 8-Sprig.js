@@ -21,14 +21,17 @@ const seven = "S"
 const eight = "e"
 const blocks = ["o", "t", "T", "f", "F", "s", "S", "e"];
 
-let level = 0;
-let gameStarted = false;
-let speedrun = false;
-let statsShowing = false;
+var level = 0;
+var gameStarted = false;
+var speedrun = false;
+var statsShowing = false;
 
-let startTime;
-let endTime;
-let personalBest = 10000;
+var startTime = 0;
+var endTime = 0;
+
+var endlessStartTime;
+var endlessEndTime;
+var personalBest = 10000;
 
 setLegend(
   [cursor, bitmap`
@@ -146,8 +149,8 @@ setLegend(
 .2........22..2.
 .2.........2..2.
 .2........22..2.
-.2......222...2.
-.2..22222.....2.
+.2.......22...2.
+.2..222222....2.
 .2............2.
 ..222222222222..
 ................`],
@@ -159,12 +162,12 @@ setLegend(
 .2...2........2.
 .2..2.........2.
 .2..2.........2.
-.2.22222222...2.
-.2..22....22..2.
-.2..2......22.2.
+.2..2222222...2.
+.2..22.....2..2.
 .2..2.......2.2.
-.2..222....22.2.
-.2....222222..2.
+.2..2.......2.2.
+.2..22.....22.2.
+.2...2222222..2.
 .2............2.
 ..222222222222..
 ................`],
@@ -172,16 +175,16 @@ setLegend(
 ................
 ..222222222222..
 .2............2.
-.2.2222222222.2.
-.2..........2.2.
+.2.222222222..2.
 .2.........22.2.
 .2........22..2.
 .2........2...2.
 .2.......22...2.
 .2......22....2.
-.2....222.....2.
+.2......2.....2.
+.2.....22.....2.
+.2....22......2.
 .2...22.......2.
-.2..22........2.
 .2............2.
 ..222222222222..
 ................`],
@@ -235,24 +238,36 @@ est`
 
 const endScreenLevel = [
   map`
-.................
-.................
-.................
-.................
-.................
-.................
-.................
-.................
-.................
-.................
-..............otT
-..............fFs
-..............Se.`
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+....................
+.................otT
+.................fFs
+.................Se.`
 ];
 
-setSolids(
+setSolids( // dont allow stuff to pass through them 💀
   [one, two, three, four, five, six, seven, eight]
 )
+setPushables({ // goofy logic to allow two blocks to both be pushed simultaneously provided there is a empty space on on opposite side
+  [one]: [two, three, four, five, six, seven, eight],
+  [two]: [one, three, four, five, six, seven, eight],
+  [three]: [one, two, four, five, six, seven, eight],
+  [four]: [one, two, three, five, six, seven, eight],
+  [five]: [one, two, three, four, six, seven, eight],
+  [six]: [one, two, three, four, five, seven, eight],
+  [seven]: [one, two, three, four, five, six, eight],
+  [eight]: [one, two, three, four, five, six, seven],
+})
 setBackground(background)
 
 // game start, show text and instructions
@@ -307,7 +322,7 @@ addText("block", {
 addText("Press Left-Up for", {
   x: 0,
   y: 11,
-  color: color`3`
+  color: color`1`
 })
 addText("speedrun", {
   x: 0,
@@ -317,7 +332,7 @@ addText("speedrun", {
 addText("Press Right-Up", {
   x: 0,
   y: 14,
-  color: color`8`
+  color: color`1`
 })
 addText("for endless", {
   x: 0,
@@ -364,10 +379,25 @@ const click = tune`
 96.7741935483871: E4^96.7741935483871,
 2903.225806451613`
 const thock = tune`
-312.5,
-312.5: C4/312.5,
-9375` 
-const playback = playTune(melody, Infinity)
+196.07843137254903,
+196.07843137254903: C4-196.07843137254903,
+5882.352941176471` 
+const victoryTune = tune`
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: F5~170.45454545454547,
+170.45454545454547,
+170.45454545454547: B4~170.45454545454547,
+340.90909090909093,
+170.45454545454547: D5~170.45454545454547,
+340.90909090909093,
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: E5^170.45454545454547,
+170.45454545454547: F5~170.45454545454547,
+2897.727272727273`
+playback = playTune(melody, Infinity)
 
 // handle cursor input movement
 onInput("i", () => {
@@ -397,117 +427,59 @@ onInput("l", () => {
 })
 
 // handle movements for moving the entire cursor and the block selected under it
-onInput("w", () => {
+function moveManager(event) {
   const cursorSprite = getFirst(cursor);
-  const spritesOnCursor = getTile(cursorSprite.x, cursorSprite.y);
-  const nextTileSprites = getTile(cursorSprite.x, cursorSprite.y - 1);
+  const spriteOnCursor = getTile(cursorSprite.x, cursorSprite.y);
 
-  let shouldMove = true;
-
-  // Check if there is any entity in the path preventing the cursor from moving
-  if (nextTileSprites.some(sprite => sprite !== cursorSprite && sprite.type !== background)) {
-    shouldMove = false;
-  }
-
-  // Check if the cursor sprite is on top of another sprite
-  spritesOnCursor.forEach(sprite => {
+  // Check if the cursor sprite is on top of another sprite, and satisfy move conditions
+  spriteOnCursor.forEach(sprite => {
     if (sprite !== cursorSprite && sprite.type !== background) {
-      // Move both the cursor sprite and the sprite it is on top of upwards
-      sprite.y -= 1;
+      playTune(thock)
+
+      switch (event) {
+        case 'w':
+          // Move both the cursor sprite and the sprite it is on top of
+          sprite.y -= 1;
+          // move cursor too
+          cursorSprite.y -= 1;
+          break;
+        case 's':
+          sprite.y += 1;
+          cursorSprite.y += 1;
+          break;
+        case 'a':
+          sprite.x -= 1;
+          cursorSprite.x -= 1;
+          break;
+        case 'd':
+          sprite.x += 1;
+          cursorSprite.x += 1;
+          break;
+      }
     }
   });
+}
 
-  // Move the cursor sprite if conditions allow
-  if (shouldMove) {
-    cursorSprite.y -= 1;
-    playTune(thock)
-  }
-
+onInput("w", () => {
+  // special trigger for game start
   if (gameStarted === false) {
     speedrun = true;
     startGame();
   }
+  
+  moveManager("w")
 })
 
 onInput("s", () => {
-  const cursorSprite = getFirst(cursor);
-  const spritesOnCursor = getTile(cursorSprite.x, cursorSprite.y);
-  const nextTileSprites = getTile(cursorSprite.x, cursorSprite.y + 1);
-
-  let shouldMove = true;
-
-  // Check if there is any entity in the path preventing the cursor from moving
-  if (nextTileSprites.some(sprite => sprite !== cursorSprite && sprite.type !== background)) {
-    shouldMove = false;
-  }
-
-  // Check if the cursor sprite is on top of another sprite
-  spritesOnCursor.forEach(sprite => {
-    if (sprite !== cursorSprite && sprite.type !== background) {
-      // Move both the cursor sprite and the sprite it is on top of upwards
-      sprite.y += 1;
-    }
-  });
-
-  // Move the cursor sprite if conditions allow
-  if (shouldMove) {
-    cursorSprite.y += 1;
-    playTune(thock)
-  }
+  moveManager("s")
 })
 
 onInput("a", () => {
-  const cursorSprite = getFirst(cursor);
-  const spritesOnCursor = getTile(cursorSprite.x, cursorSprite.y);
-  const nextTileSprites = getTile(cursorSprite.x - 1, cursorSprite.y);
-
-  let shouldMove = true;
-
-  // Check if there is any entity in the path preventing the cursor from moving
-  if (nextTileSprites.some(sprite => sprite !== cursorSprite && sprite.type !== background)) {
-    shouldMove = false;
-  }
-
-  // Check if the cursor sprite is on top of another sprite
-  spritesOnCursor.forEach(sprite => {
-    if (sprite !== cursorSprite && sprite.type !== background) {
-      // Move both the cursor sprite and the sprite it is on top of upwards
-      sprite.x -= 1;
-    }
-  });
-
-  // Move the cursor sprite if conditions allow
-  if (shouldMove) {
-    cursorSprite.x -= 1;
-    playTune(thock)
-  }
+  moveManager("a")
 })
 
 onInput("d", () => {
-  const cursorSprite = getFirst(cursor);
-  const spritesOnCursor = getTile(cursorSprite.x, cursorSprite.y);
-  const nextTileSprites = getTile(cursorSprite.x + 1, cursorSprite.y);
-
-  let shouldMove = true;
-
-  // Check if there is any entity in the path preventing the cursor from moving
-  if (nextTileSprites.some(sprite => sprite !== cursorSprite && sprite.type !== background)) {
-    shouldMove = false;
-  }
-
-  // Check if the cursor sprite is on top of another sprite
-  spritesOnCursor.forEach(sprite => {
-    if (sprite !== cursorSprite && sprite.type !== background) {
-      // Move both the cursor sprite and the sprite it is on top of upwards
-      sprite.x += 1;
-    }
-  });
-
-  // Move the cursor sprite if conditions allow
-  if (shouldMove) {
-    cursorSprite.x += 1;
-    playTune(thock)
-  }
+  moveManager("d")
 })
 
 // called upon main menu input
@@ -519,9 +491,7 @@ function startGame() {
 }
 
 // special level switcher logic
-function next level() {
-  setSolids([]) // allow block collisions temporarily to allow setting random puzzle config
-  
+function nextLevel() {
   if (speedrun === true) { // actually switch levels since we are in speedrun mode
     if (levels.length - 1 == level) {
       gameOver();
@@ -537,10 +507,11 @@ function next level() {
     level = 1; // keep level the same for simplicity
     setMap(levels[level])
     addSprite(0, 0, cursor)
-    startTime = performance.now()
 
     // generate new puzzle configuration
+    setSolids([]) // allow block collisions temporarily to allow setting random puzzle config
     let puzzle = generateRandomPuzzle();
+    // let puzzle = [1, 2, 3, 4, 5, 6, 7, 0, 8] //for debug purposes
     for (let i = 0; i < blocks.length; i++) { // loop for every tile and get its position from the configuration
       let tile = i + 1;
       let position = getTilePosition(puzzle, tile);
@@ -551,44 +522,49 @@ function next level() {
       //console.log(`Tile ${blocks[i]} is at position: (${position.x}, ${position.y})`);
     }
     printPuzzle(puzzle);
+
+    setSolids( // bring collisions back now that we've set all positions
+      [one, two, three, four, five, six, seven, eight]
+    )
+    endlessStartTime = performance.now()
   }
-  setSolids( // bring collisions back now that we've set all positions
-    [one, two, three, four, five, six, seven, eight]
-  )
 }
 
 function endlessStats() { // stats screen after every solve in endless mode
   statsShowing = true;
   setMap(endScreenLevel[0])
 
-  endTime = performance.now()
-  var timeDiff = endTime - startTime; //in ms
+  endlessEndTime = performance.now()
+  var timeDiff = endlessEndTime - endlessStartTime; //in ms
   // strip the ms and convert to seconds
   timeDiff /= 1000;
   var seconds = +timeDiff.toFixed(2);
 
   if (seconds < personalBest) {
     personalBest = seconds;
-    //console.log(personalBest)
   }
 
-  addText(`Time: ${seconds} sec`, { x: 3, y: 2, color: color`3` })
+  addText(`Time: ${seconds} sec`, { x: 3, y: 2, color: color`4` })
   addText(`PB: ${personalBest} sec`, { x: 4, y: 4, color: color`3` })
   addText("Press Right-Up", {
     x: 3,
     y: 10,
-    color: color`3`
+    color: color`8`
   })
   addText("to continue", {
     x: 4,
     y: 11,
-    color: color`3`
+    color: color`8`
   })
 }
 
 function gameOver() { // only in speedrun mode
   setMap(endScreenLevel[0])
-
+  playback.end();
+  setTimeout(() => {
+    playTune(victoryTune)
+  }, 1500)
+  
   endTime = performance.now()
   var timeDiff = endTime - startTime; //in ms
   // strip the ms and convert to seconds
@@ -606,13 +582,11 @@ function gameOver() { // only in speedrun mode
     y: 7,
     color: color`2`
   })
-  addText("It was 135s", {
+  addText("It was 88.05s", {
     x: 4,
     y: 8,
     color: color`2`
   })
-  playback.end()
-  
 }
 
 afterInput(() => {
@@ -664,7 +638,7 @@ function generateRandomPuzzle() {
 
 function printPuzzle(puzzle) {
   for (let i = 0; i < 9; i += 3) {
-    //console.log(puzzle.slice(i, i + 3).join(" "));
+    console.log(puzzle.slice(i, i + 3).join(" "));
   }
 }
 
