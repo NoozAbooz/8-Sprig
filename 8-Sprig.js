@@ -19,10 +19,13 @@ const five = "F"
 const six = "s"
 const seven = "S"
 const eight = "e"
+
+// list needed for random generation
 const blocks = ["o", "t", "T", "f", "F", "s", "S", "e"];
 
 var level = 0;
 var gameStarted = false;
+var gameOverState = false;
 var speedrun = false;
 var statsShowing = false;
 
@@ -270,6 +273,99 @@ setPushables({ // goofy logic to allow two blocks to both be pushed simultaneous
 })
 setBackground(background)
 
+// music, define sound effects
+const melodyPart1 = tune`
+245.9016393442623: D5^245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + C5^245.9016393442623,
+245.9016393442623: E4~245.9016393442623 + E5-245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + F5-245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: D5^245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + E5-245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: E4~245.9016393442623 + C5^245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + D5^245.9016393442623,
+245.9016393442623: E5^245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + A4^245.9016393442623,
+245.9016393442623: E4~245.9016393442623 + E5-245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + F5-245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: D5^245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + E5-245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: E4~245.9016393442623 + C5^245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + D5^245.9016393442623,
+245.9016393442623: C5^245.9016393442623,
+3688.5245901639346`
+const melodyPart2 = tune`
+245.9016393442623: E4/245.9016393442623,
+245.9016393442623: E4~245.9016393442623 + E5-245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + F5-245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: D5^245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + E5-245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: C5^245.9016393442623 + E4~245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + A4^245.9016393442623,
+245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + C5^245.9016393442623,
+245.9016393442623: E5-245.9016393442623 + E4~245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + F5-245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: D5^245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + E5-245.9016393442623 + A4^245.9016393442623 + B5~245.9016393442623,
+245.9016393442623: E4~245.9016393442623,
+245.9016393442623: E4/245.9016393442623 + C5^245.9016393442623,
+4180.327868852459`
+const click = tune`
+96.7741935483871,
+96.7741935483871: E4^96.7741935483871,
+2903.225806451613`
+const thock = tune`
+196.07843137254903,
+196.07843137254903: C4-196.07843137254903,
+5882.352941176471` 
+const victoryTune = tune`
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: F5~170.45454545454547,
+170.45454545454547,
+170.45454545454547: B4~170.45454545454547,
+340.90909090909093,
+170.45454545454547: D5~170.45454545454547,
+340.90909090909093,
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: F5^170.45454545454547,
+170.45454545454547: E5^170.45454545454547,
+170.45454545454547: F5~170.45454545454547,
+2897.727272727273`
+
+function loopMelody() { // async recursive loop to infinitely play music with small delay
+  if (gameOverState === true) {
+    console.log("stopping music");
+    return;
+  }
+
+  // play pt1
+  playTune(melodyPart1)
+  
+  if (gameOverState === true) {
+    return;
+  }
+
+  // async delay to play pt2
+  setTimeout(() => {
+    playTune(melodyPart2)
+  }, 4000)
+  
+  if (gameOverState === true) {
+    return;
+  }
+
+  // async wait for both parts to finish and loop
+  setTimeout(loopMelody, 8500);
+  
+  if (gameOverState === true) {
+    return;
+  }
+}
+
+loopMelody();
+
 // game start, show text and instructions
 setMap(levels[level])
 addSprite(14, 10, cursor)
@@ -277,7 +373,7 @@ addSprite(14, 10, cursor)
 addText("Welcome to 8-Sprig!", {
   x: 0,
   y: 1,
-  color: color`2`
+  color: color`7`
 })
 addText("-Arrange the blocks", {
   x: 0,
@@ -314,10 +410,10 @@ addText("D-pad to move the", {
   y: 8,
   color: color`2`
 })
-addText("block", {
+addText("blocks", {
   x: 0,
   y: 9,
-  color: color`7`
+  color: color`6`
 })
 addText("Press Left-Up for", {
   x: 0,
@@ -339,65 +435,6 @@ addText("for endless", {
   y: 15,
   color: color`8`
 })
-
-// music, define sound effects
-const melody = tune`
-245.9016393442623: D5^245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + C5^245.9016393442623,
-245.9016393442623: E4~245.9016393442623 + E5-245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + F5-245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: D5^245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + E5-245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: E4~245.9016393442623 + C5^245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + D5^245.9016393442623,
-245.9016393442623: E5^245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + A4^245.9016393442623,
-245.9016393442623: E4~245.9016393442623 + E5-245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + F5-245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: D5^245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + E5-245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: E4~245.9016393442623 + C5^245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + D5^245.9016393442623,
-245.9016393442623: C5^245.9016393442623,
-245.9016393442623: E4/245.9016393442623,
-245.9016393442623: E4~245.9016393442623 + E5-245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + F5-245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: D5^245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + E5-245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: C5^245.9016393442623 + E4~245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + A4^245.9016393442623,
-245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + C5^245.9016393442623,
-245.9016393442623: E5-245.9016393442623 + E4~245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + F5-245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: D5^245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + E5-245.9016393442623 + A4^245.9016393442623 + B5~245.9016393442623,
-245.9016393442623: E4~245.9016393442623,
-245.9016393442623: E4/245.9016393442623 + C5^245.9016393442623`
-const click = tune`
-96.7741935483871,
-96.7741935483871: E4^96.7741935483871,
-2903.225806451613`
-const thock = tune`
-196.07843137254903,
-196.07843137254903: C4-196.07843137254903,
-5882.352941176471` 
-const victoryTune = tune`
-170.45454545454547: F5^170.45454545454547,
-170.45454545454547: F5^170.45454545454547,
-170.45454545454547: F5^170.45454545454547,
-170.45454545454547: F5~170.45454545454547,
-170.45454545454547,
-170.45454545454547: B4~170.45454545454547,
-340.90909090909093,
-170.45454545454547: D5~170.45454545454547,
-340.90909090909093,
-170.45454545454547: F5^170.45454545454547,
-170.45454545454547: F5^170.45454545454547,
-170.45454545454547: E5^170.45454545454547,
-170.45454545454547: F5~170.45454545454547,
-2897.727272727273`
-playback = playTune(melody, Infinity)
 
 // handle cursor input movement
 onInput("i", () => {
@@ -429,31 +466,42 @@ onInput("l", () => {
 // handle movements for moving the entire cursor and the block selected under it
 function moveManager(event) {
   const cursorSprite = getFirst(cursor);
-  const spriteOnCursor = getTile(cursorSprite.x, cursorSprite.y);
+  const selectedSprite = getTile(cursorSprite.x, cursorSprite.y);
 
-  // Check if the cursor sprite is on top of another sprite, and satisfy move conditions
-  spriteOnCursor.forEach(sprite => {
-    if (sprite !== cursorSprite && sprite.type !== background) {
+  // Check if the cursor sprite is on top of a block, and satisfy move conditions
+  selectedSprite.forEach(block => {
+    if (block !== cursorSprite && block.type !== background) {
       playTune(thock)
 
+      const initialX = block.x
+      const initialY = block.y
+      
       switch (event) {
         case 'w':
           // Move both the cursor sprite and the sprite it is on top of
-          sprite.y -= 1;
-          // move cursor too
-          cursorSprite.y -= 1;
+          block.y -= 1;
+          // move cursor too, horrible horrible cursed inline logic for conciseness
+          cursorSprite.y -= (block.y != initialY) ? 1 : 0; 
+
+          // Above statement is equivalent to ->
+          // if(block.y != initialY){   // so if a block has changed from initial position (check to make sure it's not running into wall)
+          //    x = n;   // move cursor along with it in the -1 direction
+          // } 
+          // else { 
+          //    x = m;  // dont move cursor at all if the block doesn't move
+          // } 
           break;
         case 's':
-          sprite.y += 1;
-          cursorSprite.y += 1;
+          block.y += 1;
+          cursorSprite.y += (block.y != initialY) ? 1 : 0; 
           break;
         case 'a':
-          sprite.x -= 1;
-          cursorSprite.x -= 1;
+          block.x -= 1;
+          cursorSprite.x -= (block.x != initialX) ? 1 : 0; 
           break;
         case 'd':
-          sprite.x += 1;
-          cursorSprite.x += 1;
+          block.x += 1;
+          cursorSprite.x += (block.x != initialX) ? 1 : 0; 
           break;
       }
     }
@@ -487,7 +535,7 @@ function startGame() {
   gameStarted = true;
   clearText()
   nextLevel()
-  startTime = performance.now()
+  startTime = Date.now();
 }
 
 // special level switcher logic
@@ -526,7 +574,7 @@ function nextLevel() {
     setSolids( // bring collisions back now that we've set all positions
       [one, two, three, four, five, six, seven, eight]
     )
-    endlessStartTime = performance.now()
+    endlessStartTime = Date.now();
   }
 }
 
@@ -534,7 +582,7 @@ function endlessStats() { // stats screen after every solve in endless mode
   statsShowing = true;
   setMap(endScreenLevel[0])
 
-  endlessEndTime = performance.now()
+  endlessEndTime = Date.now()
   var timeDiff = endlessEndTime - endlessStartTime; //in ms
   // strip the ms and convert to seconds
   timeDiff /= 1000;
@@ -559,13 +607,13 @@ function endlessStats() { // stats screen after every solve in endless mode
 }
 
 function gameOver() { // only in speedrun mode
+  gameOverState = true;
   setMap(endScreenLevel[0])
-  playback.end();
   setTimeout(() => {
     playTune(victoryTune)
-  }, 1500)
+  }, 5000)
   
-  endTime = performance.now()
+  endTime = Date.now();
   var timeDiff = endTime - startTime; //in ms
   // strip the ms and convert to seconds
   timeDiff /= 1000;
@@ -636,12 +684,6 @@ function generateRandomPuzzle() {
   return puzzle;
 }
 
-function printPuzzle(puzzle) {
-  for (let i = 0; i < 9; i += 3) {
-    console.log(puzzle.slice(i, i + 3).join(" "));
-  }
-}
-
 function getTilePosition(puzzle, tile) {
   const index = puzzle.indexOf(tile);
   if (index === -1) {
@@ -650,4 +692,10 @@ function getTilePosition(puzzle, tile) {
   const x = index % 3;
   const y = Math.floor(index / 3);
   return { x, y };
+}
+
+function printPuzzle(puzzle) {
+  for (let i = 0; i < 9; i += 3) {
+    console.log(puzzle.slice(i, i + 3).join(" "));
+  }
 }
